@@ -611,7 +611,7 @@ class AdaBoostClassifier(ClassifierMixin, BaseWeightBoosting):
 
         estimator.fit(X, y, sample_weight=sample_weight)
 
-        y_predict = estimator.predict(X)
+        y_predict = estimator.predict(X,y)
 
         if iboost == 0:
             self.classes_ = getattr(estimator, 'classes_', None)

@@ -35,6 +35,7 @@ import collections
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.under_sampling import ClusterCentroids
+from imblearn.over_sampling import SMOTE
 
 class customMLPClassifer(MLPClassifier):
     def resample_with_replacement(self, X_train, y_train, sample_weight):
@@ -87,7 +88,7 @@ def makeconma(conma,mat):
 
 def ToExcel(train_acc,train_geoacc,train_auc,train_spe, train_sen, test_acc,test_geoacc,test_auc,test_spe, test_sen, Ths): # ,mat,colname_first,colname_second
     mat = pd.DataFrame({"train_ACC":train_acc,"train_GEOACC":train_geoacc,"train_AUROC":train_auc,"train_SPE":train_spe,"train_SEN":train_sen,"test_ACC":test_acc,"test_GEOACC":test_geoacc,"test_AUROC":test_auc,"test_SPE":test_spe,"test_SEN":test_sen,"Ths":Ths})
-    mat['Mean'] = mat.mean(axis=0)
+    mat['Mean'] = mat.mean(axis=1)
     mat = mat.round(2)
     mat = mat.T
     return mat
@@ -97,7 +98,7 @@ def kfold_verify(lf, n_fold, X, y, name, n_estimators):
     conma_2=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
     skfold = StratifiedKFold(n_splits=n_fold) # 이거는 10-fold니깐 10일 듯
 
-    n_for = 3 # 이게 아마 3인가 그럼
+    n_for = 4 # 이게 아마 3인가 그럼
     train_acc = []
     train_geoacc = []
     train_auc = []
@@ -127,9 +128,8 @@ def kfold_verify(lf, n_fold, X, y, name, n_estimators):
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             
             #---데이터 정규화
-            scaler = StandardScaler()
-            X_train_s = scaler.fit_transform(X_train)
-            X_test_s = scaler.transform(X_test)
+            X_train_s = X_train
+            X_test_s = X_test
             #
 
             
@@ -211,7 +211,7 @@ def kfold_verify(lf, n_fold, X, y, name, n_estimators):
             for j in range(N):
                 test_proba.append(clf.estimators_[j].predict_proba(X_test_s))
             #-------------------------------------
-            X_train = np.array(X_train_s)
+            X_train_s = np.array(X_train_s)
             y_train = np.array(y_train)
 
             X_test = np.array(X_test)
@@ -246,6 +246,8 @@ def kfold_verify(lf, n_fold, X, y, name, n_estimators):
             frame.columns = idx_li
             frame.to_csv("ResultRUSROS/"+name+str(n)+"-th_"+str(len(X))+'_input.csv')
             n = n + 1
+            if n == 30:
+                break
     result = ToExcel(train_acc, train_geoacc, train_auc, train_spe, train_sen, test_acc, test_geoacc, test_auc, test_spe, test_sen, Ths)
     result.to_csv("ResultRUSROS/"+name+"_result"+str(len(X))+".csv")
     len_w = w[0].shape[0]
@@ -259,7 +261,7 @@ def kfold_verify_RUS(lf, n_fold, X, y, name, n_estimators):
     conma_2=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
     skfold = StratifiedKFold(n_splits=n_fold) # 이거는 10-fold니깐 10일 듯
 
-    n_for = 3 # 이게 아마 3인가 그럼
+    n_for = 4 # 이게 아마 3인가 그럼
     train_acc = []
     train_geoacc = []
     train_auc = []
@@ -289,17 +291,17 @@ def kfold_verify_RUS(lf, n_fold, X, y, name, n_estimators):
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             
             #---데이터 정규화
-            scaler = StandardScaler()
-            X_train_s = scaler.fit_transform(X_train)
-            X_test_s = scaler.transform(X_test)
+            X_train_s = X_train
+            X_test_s = X_test
             #
 
             #--RUS 적용
             under = RandomUnderSampler(sampling_strategy = 1)
             X_train_r, y_train_r = under.fit_resample(X_train_s,y_train)
-            
-            clf.fit(X_train_r,y_train_r)             
-            
+            try :
+                clf.fit(X_train_r,y_train_r)             
+            except :
+                continue
             N = clf.count
 
             
@@ -377,8 +379,8 @@ def kfold_verify_RUS(lf, n_fold, X, y, name, n_estimators):
             for j in range(N):
                 test_proba.append(clf.estimators_[j].predict_proba(X_test_s))
             #-------------------------------------
-            X_train = np.array(X_train_r)
-            y_train = np.array(y_train_r)
+            X_train_r = np.array(X_train_r)
+            y_train_r = np.array(y_train_r)
 
             X_test = np.array(X_test)
             y_test = np.array(y_test)
@@ -412,6 +414,8 @@ def kfold_verify_RUS(lf, n_fold, X, y, name, n_estimators):
             frame.columns = idx_li
             frame.to_csv("ResultRUSROS/"+name+str(n)+"-th_"+str(len(X))+'_input.csv')
             n = n + 1
+            if n == 30:
+                break
     result = ToExcel(train_acc, train_geoacc, train_auc, train_spe, train_sen, test_acc, test_geoacc, test_auc, test_spe, test_sen, Ths)
     result.to_csv("ResultRUSROS/"+name+"_result"+str(len(X))+".csv")
     len_w = w[0].shape[0]
@@ -425,7 +429,7 @@ def kfold_verify_CUS(lf, n_fold, X, y, name, n_estimators):
     conma_2=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
     skfold = StratifiedKFold(n_splits=n_fold) # 이거는 10-fold니깐 10일 듯
 
-    n_for = 3 # 이게 아마 3인가 그럼
+    n_for = 4 # 이게 아마 3인가 그럼
     train_acc = []
     train_geoacc = []
     train_auc = []
@@ -455,15 +459,18 @@ def kfold_verify_CUS(lf, n_fold, X, y, name, n_estimators):
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             
             #---데이터 정규화
-            scaler = StandardScaler()
-            X_train_s = scaler.fit_transform(X_train)
-            X_test_s = scaler.transform(X_test)
+            X_train_s = X_train
+            X_test_s = X_test
             #
 
             #--RUS 적용
             under = ClusterCentroids(sampling_strategy=1,voting = 'hard')
             X_train_r, y_train_r = under.fit_resample(X_train_s,y_train)
-            clf.fit(X_train_r,y_train_r)             
+            
+            try :
+                clf.fit(X_train_r,y_train_r)             
+            except :
+                continue 
             
             N = clf.count
 
@@ -473,7 +480,6 @@ def kfold_verify_CUS(lf, n_fold, X, y, name, n_estimators):
             clf.estimator_weights_ = clf.estimator_weights_/sum(clf.estimator_weights_)
             proba1 = 0
             for i in range(N):
-                print(i)
                 proba1 += clf.estimators_[i].predict_proba(X_train_r)*clf.estimator_weights_[i]
             proba1 = proba1[:,1]
             proba2 = 0
@@ -544,8 +550,8 @@ def kfold_verify_CUS(lf, n_fold, X, y, name, n_estimators):
             for j in range(N):
                 test_proba.append(clf.estimators_[j].predict_proba(X_test_s))
             #-------------------------------------
-            X_train = np.array(X_train_r)
-            y_train = np.array(y_train_r)
+            X_train_r = np.array(X_train_r)
+            y_train_r = np.array(y_train_r)
 
             X_test = np.array(X_test)
             y_test = np.array(y_test)
@@ -579,6 +585,8 @@ def kfold_verify_CUS(lf, n_fold, X, y, name, n_estimators):
             frame.columns = idx_li
             frame.to_csv("ResultRUSROS/"+name+str(n)+"-th_"+str(len(X))+'_input.csv')
             n = n + 1
+            if n == 30:
+                break
     result = ToExcel(train_acc, train_geoacc, train_auc, train_spe, train_sen, test_acc, test_geoacc, test_auc, test_spe, test_sen, Ths)
     result.to_csv("ResultRUSROS/"+name+"_result"+str(len(X))+".csv")
     len_w = w[0].shape[0]
@@ -592,7 +600,7 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
     conma_2=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
     skfold = StratifiedKFold(n_splits=n_fold) # 이거는 10-fold니깐 10일 듯
 
-    n_for = 3 # 이게 아마 3인가 그럼
+    n_for = 4 # 이게 아마 3인가 그럼
     train_acc = []
     train_geoacc = []
     train_auc = []
@@ -622,17 +630,17 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             
             #---데이터 정규화
-            scaler = StandardScaler()
-            X_train_s = scaler.fit_transform(X_train)
-            X_test_s = scaler.transform(X_test)
+            X_train_s = X_train
+            X_test_s = X_test
             #
 
             #--RUS 적용
             ros = RandomOverSampler(random_state=0)
             X_train_r, y_train_r = ros.fit_resample(X_train_s, y_train)
-            
-            clf.fit(X_train_r,y_train_r)             
-            
+            try :
+                clf.fit(X_train_r,y_train_r)             
+            except:
+                continue 
             N = clf.count
 
             
@@ -640,7 +648,7 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             clf.estimator_weights_ = clf.estimator_weights_/sum(clf.estimator_weights_)
             proba1 = 0
             for i in range(N):
-                proba1 += clf.estimators_[i].predict_proba(X_train_s)*clf.estimator_weights_[i]
+                proba1 += clf.estimators_[i].predict_proba(X_train_r)*clf.estimator_weights_[i]
             proba1 = proba1[:,1]
             proba2 = 0
             for i in range(N):
@@ -649,13 +657,13 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             #----------------------
 
             #------------------------------- 임계값 구하기
-            Threshold = Find_Optimal_Cutoff(y_train, proba1)
+            Threshold = Find_Optimal_Cutoff(y_train_r, proba1)
             Ths.append(Threshold)
             
             train_pred = proba1 >= Threshold
             pred = proba2 >= Threshold
             
-            mat_train  = confusion_matrix(y_train,train_pred)
+            mat_train  = confusion_matrix(y_train_r,train_pred)
             mat_test  = confusion_matrix(y_test,pred)
             
             conma_train = makeconma(conma_1,mat_train)
@@ -666,11 +674,11 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             #------------------------------- 임계값 구하기
             
             #------------------------------- 성능 측정 train
-            accuracy = np.round(accuracy_score(y_train,train_pred), 4 )
-            auc = roc_auc_score(y_train, proba1)
+            accuracy = np.round(accuracy_score(y_train_r,train_pred), 4 )
+            auc = roc_auc_score(y_train_r, proba1)
             geoaccvalue = geoacc(conma_train)
             spe = calspe(conma_train)
-            sen = recall_score(y_train,train_pred)
+            sen = recall_score(y_train_r,train_pred)
             
             train_acc.append(accuracy)
             train_geoacc.append(geoaccvalue)
@@ -701,7 +709,7 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             train_proba = []
             train_pred = proba1 >Threshold
             for j in range(N):
-                train_proba.append(clf.estimators_[j].predict_proba(X_train_s)) 
+                train_proba.append(clf.estimators_[j].predict_proba(X_train_r)) 
 
             test_proba = []
             test_pred = 0
@@ -710,8 +718,8 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             for j in range(N):
                 test_proba.append(clf.estimators_[j].predict_proba(X_test_s))
             #-------------------------------------
-            X_train = np.array(X_train_s)
-            y_train = np.array(y_train)
+            X_train_s = np.array(X_train_r)
+            y_train = np.array(y_train_r)
 
             X_test = np.array(X_test)
             y_test = np.array(y_test)
@@ -745,6 +753,8 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
             frame.columns = idx_li
             frame.to_csv("ResultRUSROS/"+name+str(n)+"-th_"+str(len(X))+'_input.csv')
             n = n + 1
+            if n == 30:
+                break
     result = ToExcel(train_acc, train_geoacc, train_auc, train_spe, train_sen, test_acc, test_geoacc, test_auc, test_spe, test_sen, Ths)
     result.to_csv("ResultRUSROS/"+name+"_result"+str(len(X))+".csv")
     len_w = w[0].shape[0]
@@ -753,6 +763,173 @@ def kfold_verify_ROS(lf, n_fold, X, y, name, n_estimators):
     conmat = pd.DataFrame(np.concatenate(conmat,axis=1))
     conmat.to_csv("ResultRUSROS/conmat"+name+str(len(X))+".csv")
 
+def kfold_verify_SMO(lf, n_fold, X, y, name, n_estimators): 
+    conma_1=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
+    conma_2=pd.DataFrame(np.array([[0,0],[0,0]]),columns=['예측0','예측1'],index=['실제0','실제1'])
+    skfold = StratifiedKFold(n_splits=n_fold) # 이거는 10-fold니깐 10일 듯
+
+    n_for = 4 # 이게 아마 3인가 그럼
+    train_acc = []
+    train_geoacc = []
+    train_auc = []
+    train_spe = []
+    train_sen = []
+    
+
+    test_acc = []
+    test_geoacc = []
+    test_auc = []
+    test_spe = []
+    test_sen = []
+    n_iter = 0
+    n = 0
+    
+    Ths = []
+    w = []
+    conmat = []
+    for i in range(n_for): # 여기서 3번
+        #xlsx.sample(frac=1,random_state=i).reset_index(drop=True)
+        for train_index, test_index in skfold.split(X,y): # 여기서 10 번 총 30번 이게 아마 skfold가 여기서 이렇게 선언하면 안댈텐데 나중에 만들때 고려해야함 아마 이 라인 바로위에서 skfold 객체를 만들어야할 것 
+            clf = clone(lf)    
+            idx_li = ['fold','train/test','ratio1','ratio2','ratio3','ratio4','ratio5','ratio6','ratio7','target','predict','total_proba']
+            frame = pd.DataFrame()
+            n_iter +=1
+            X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+            
+            #---데이터 정규화
+            X_train_s = X_train
+            X_test_s = X_test
+            #
+
+            #--RUS 적용
+            sm = SMOTE(sampling_strategy = 1)
+            X_train_r, y_train_r = sm.fit_resample(X_train_s, y_train)
+            try :
+                clf.fit(X_train_r,y_train_r)             
+            except:
+                continue 
+            N = clf.count
+
+            
+            #----------------------SAMME, SAMME.R 자꾸 햇갈려서 걍 전처리
+            clf.estimator_weights_ = clf.estimator_weights_/sum(clf.estimator_weights_)
+            proba1 = 0
+            for i in range(N):
+                proba1 += clf.estimators_[i].predict_proba(X_train_r)*clf.estimator_weights_[i]
+            proba1 = proba1[:,1]
+            proba2 = 0
+            for i in range(N):
+                proba2 += clf.estimators_[i].predict_proba(X_test_s)*clf.estimator_weights_[i]
+            proba2 = proba2[:,1]
+            #----------------------
+
+            #------------------------------- 임계값 구하기
+            Threshold = Find_Optimal_Cutoff(y_train_r, proba1)
+            Ths.append(Threshold)
+            
+            train_pred = proba1 >= Threshold
+            pred = proba2 >= Threshold
+            
+            mat_train  = confusion_matrix(y_train_r,train_pred)
+            mat_test  = confusion_matrix(y_test,pred)
+            
+            conma_train = makeconma(conma_1,mat_train)
+            conma_test = makeconma(conma_2,mat_test)            
+            
+            conmat.append(np.concatenate([mat_train,mat_test],axis = 0))
+            w.append(clf.estimator_weights_) 
+            #------------------------------- 임계값 구하기
+            
+            #------------------------------- 성능 측정 train
+            accuracy = np.round(accuracy_score(y_train_r,train_pred), 4 )
+            auc = roc_auc_score(y_train_r, proba1)
+            geoaccvalue = geoacc(conma_train)
+            spe = calspe(conma_train)
+            sen = recall_score(y_train_r,train_pred)
+            
+            train_acc.append(accuracy)
+            train_geoacc.append(geoaccvalue)
+            train_auc.append(auc)            
+            train_spe.append(spe)
+            train_sen.append(sen)
+            
+            #------------------------------- 성능 측정
+            
+            
+            #------------------------------- 성능 측정 test
+            accuracy = np.round(accuracy_score(y_test,pred), 4 )
+            auc = roc_auc_score(y_test, proba2)
+            geoaccvalue = geoacc(conma_test)
+            spe = calspe(conma_test)
+            sen = recall_score(y_test,pred)
+
+            test_acc.append(accuracy)
+            test_geoacc.append(geoaccvalue)
+            test_auc.append(auc)            
+            test_spe.append(spe)            
+            test_sen.append(sen)            
+            
+            #------------------------------- 성능 측정
+            
+            #------------------------------- 수정해야댈 듯
+            # each 20 estm predict
+            train_proba = []
+            train_pred = proba1 >Threshold
+            for j in range(N):
+                train_proba.append(clf.estimators_[j].predict_proba(X_train_r)) 
+
+            test_proba = []
+            test_pred = 0
+            
+            test_pred = proba2 >Threshold
+            for j in range(N):
+                test_proba.append(clf.estimators_[j].predict_proba(X_test_s))
+            #-------------------------------------
+            X_train_s = np.array(X_train_r)
+            y_train = np.array(y_train_r)
+
+            X_test = np.array(X_test)
+            y_test = np.array(y_test)
+            for i in range(len(train_proba[0])):
+                li = list(X_train_s[i])
+                li.insert(0,'train')
+                li.insert(0,(n_iter));
+                li.append(y_train[i])
+                li.append(train_pred[i])
+                li.append(proba1[i])
+                for j in range(N): # 여기서 20개 append
+                    li.append(train_proba[j][i][0]) # proba 0 추가 약분류기 j 번째에서 
+                    li.append(train_proba[j][i][1]) # proba 1추가
+                frame = frame.append(pd.Series(li),ignore_index=True)
+            
+            for i in range(len(test_proba[0])):
+                li = list(X_test[i])
+                li.insert(0,'test')
+                li.insert(0,(n_iter));
+                li.append(y_test[i])
+                li.append(test_pred[i])
+                li.append(proba2[i])
+                for j in range(N): # 여기서 20개 append
+                    li.append(test_proba[j][i][0]) # proba 0 추가
+                    li.append(test_proba[j][i][1]) # proba 1 추가
+                frame = frame.append(pd.Series(li),ignore_index=True)
+
+            for i in range(N):
+                idx_li.append('estm '+str(i)+' proba 0')
+                idx_li.append('estm '+str(i)+' proba 1')
+            frame.columns = idx_li
+            frame.to_csv("ResultRUSROS/"+name+str(n)+"-th_"+str(len(X))+'_input.csv')
+            n = n + 1
+            if n == 30:
+                break
+    result = ToExcel(train_acc, train_geoacc, train_auc, train_spe, train_sen, test_acc, test_geoacc, test_auc, test_spe, test_sen, Ths)
+    result.to_csv("ResultRUSROS/"+name+"_result"+str(len(X))+".csv")
+    len_w = w[0].shape[0]
+    w = pd.DataFrame(np.concatenate(w).reshape(-1, len_w))
+    w.to_csv("ResultRUSROS/weight"+name+str(len(X))+".csv")    
+    conmat = pd.DataFrame(np.concatenate(conmat,axis=1))
+    conmat.to_csv("ResultRUSROS/conmat"+name+str(len(X))+".csv")
 
 def fold1(clf, xlsx, X , y, name): 
     idx_li = ['fold','train/test','ratio1','ratio2','ratio3','ratio4','ratio5','ratio6','ratio7','target','predict']

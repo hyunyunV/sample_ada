@@ -192,9 +192,9 @@ class BaseEnsemble(MetaEstimatorMixin, BaseEstimator, metaclass=ABCMeta):
             sgd=optimizers.SGD(lr=0.1,clipnorm=1.)
             X = tf.keras.layers.Input(shape=[7])
             H = tf.keras.layers.Dense(5,activation='sigmoid')(X) 
-            Y = tf.keras.layers.Dense(1, activation='sigmoid')(H)
+            Y = tf.keras.layers.Dense(2, activation='softmax')(H)
             estimator = adj_keras(X,Y)
-            estimator.compile(loss='mean_squared_error', metrics=['accuracy'], optimizer=sgd)
+            estimator.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer=sgd)
             if append:
                 self.estimators_.append(estimator)
 
